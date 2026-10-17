@@ -1,0 +1,14 @@
+node_modules
+.next
+out
+build
+*.tsbuildinfo
+
+# SQLite database + WAL files (local state)
+tickets.db
+tickets.db-shm
+tickets.db-wal
+
+.DS_Store
+*.log
+.env*
