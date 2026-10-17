@@ -17,7 +17,7 @@ delete tickets — across multiple projects — alongside you.
 ## Features
 
 - 📁 **Projects** — group tickets under projects; each project has a key used as the
-  ticket prefix (`WEB-001`, `API-003`). Switch projects from the sidebar.
+  ticket prefix (`WEB-001`, `API-003`). Create and **delete** projects from the sidebar.
 - 🗂️ **Kanban board** with drag-and-drop (Todo, In Progress, Under Review, Done)
 - 📥 **Separate Backlog page** per project, as a tidy list view
 - 🐞 **Ticket types** like JIRA — Story, Task, Bug, Epic (with colored icons)
@@ -26,7 +26,9 @@ delete tickets — across multiple projects — alongside you.
 - 🔎 **Search** — search tickets by id, title, description, or label (sidebar box +
   `/search` page), scoped to the current project or global
 - ➕ **Quick-create** `+` button in every header
-- 💾 Zero-config persistence — a single `tickets.db` SQLite file
+- ⚙️ **Settings** — configurable port (default **5164**) and database path
+- 🖥️ **Native macOS app** (Tauri) that launches the web UI **and** MCP server
+- 💾 Persistence — a single SQLite file in your app data directory
 - 🤖 **MCP server** for projects, tickets, labels, and search
 
 **Ticket fields:** title, description, type, status, priority, assignee, labels.
@@ -214,28 +216,89 @@ ticketer/
 
 ---
 
+## Mac app
+
+Ticketer ships as a native **macOS app** (built with [Tauri](https://tauri.app)).
+The app wraps the same web UI in a native window and, on launch, starts **both**
+the web server and the MCP server for you. You can still run everything from the
+command line too — they share the same database and settings.
+
+### Build the `.app`
+
+Requires the **Rust toolchain** (`rustup`, rustc ≥ 1.90) in addition to Node.
+
+```bash
+pnpm install
+pnpm build          # build the Next.js app first
+pnpm app:build      # produces src-tauri/target/release/bundle/macos/Ticketer.app
+```
+
+Double-click **Ticketer.app** (or `open` it). It launches the server on the
+configured port, waits for it to come up, then loads the UI. Closing the window
+shuts the background servers down.
+
+> The bundle is **unsigned** — on first launch macOS Gatekeeper may warn you.
+> Right-click the app → **Open**, or run
+> `xattr -dr com.apple.quarantine /path/to/Ticketer.app`.
+
+### Develop the app
+
+```bash
+pnpm app:dev        # runs the Tauri shell against the local build
+```
+
+> The app launches the server from the project directory. If you move the built
+> `.app` to another machine, point it at the project with the
+> `TICKETER_APP_ROOT` environment variable.
+
+---
+
 ## Configuration
 
-- **Database path** — defaults to `tickets.db` in the project root. Override with the
-  `TICKETER_DB` environment variable:
+Ticketer keeps its **settings** and **database** in
+`~/Library/Application Support/Ticketer/` on macOS (override the whole directory
+with `TICKETER_DATA_DIR`).
 
-  ```bash
-  TICKETER_DB=/tmp/my-tickets.db pnpm dev
-  ```
+### Settings page
 
-  Set the same value for `pnpm mcp` so both sides share one database.
+Open **Settings** from the sidebar to change:
+
+- **Port** — the app runs on **5164** by default (chosen to avoid clashing with
+  common dev servers). Change it here; restart the app/server to apply.
+- **Database file** — absolute path to the SQLite file.
+
+Settings are stored in `settings.json` next to the database and are shared by the
+web server, the Mac app, and the MCP server.
+
+### Environment overrides
+
+| Variable             | Effect                                            |
+|----------------------|---------------------------------------------------|
+| `TICKETER_PORT`      | Override the port (also honors `PORT`)            |
+| `TICKETER_DB`        | Override the database file path                   |
+| `TICKETER_DATA_DIR`  | Override the settings/database directory          |
+| `TICKETER_APP_ROOT`  | Project dir the Mac app launches the server from  |
+
+```bash
+TICKETER_PORT=7000 TICKETER_DB=/tmp/my-tickets.db pnpm start
+```
+
+Set the same values for `pnpm mcp` so both sides share one database.
 
 ---
 
 ## Scripts
 
-| Command        | What it does                     |
-|----------------|----------------------------------|
-| `pnpm dev`     | Start the Next.js dev server     |
-| `pnpm build`   | Production build                 |
-| `pnpm start`   | Run the production build         |
-| `pnpm mcp`     | Start the MCP server (stdio)     |
+| Command           | What it does                                      |
+|-------------------|---------------------------------------------------|
+| `pnpm dev`        | Start the Next.js dev server (port 5164)          |
+| `pnpm build`      | Production build                                  |
+| `pnpm start`      | Run the production build on the configured port   |
+| `pnpm mcp`        | Start the MCP server (stdio)                       |
+| `pnpm app:dev`    | Run the macOS app in development                   |
+| `pnpm app:build`  | Build the macOS `.app` (and `.dmg`)                |
 
 ---
 
-Built with Next.js, coss ui, SQLite, dnd-kit, and the Model Context Protocol SDK.
+Built with Next.js, coss ui, SQLite, dnd-kit, Tauri, and the Model Context
+Protocol SDK. App icon: a tiny pixel-art robot carrying a bunch of tickets 🤖🎟️

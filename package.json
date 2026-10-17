@@ -3,10 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p ${PORT:-5164}",
     "build": "next build",
-    "start": "next start",
-    "mcp": "tsx mcp/server.ts"
+    "start": "node scripts/start-server.mjs",
+    "mcp": "tsx mcp/server.ts",
+    "tauri": "tauri",
+    "app:dev": "tauri dev",
+    "app:build": "tauri build"
   },
   "dependencies": {
     "@base-ui-components/react": "^1.0.0-beta.1",
@@ -24,6 +27,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.0.0",
+    "@tauri-apps/cli": "^2.1.0",
     "@types/node": "^22.10.7",
     "@types/react": "^19.0.7",
     "@types/react-dom": "^19.0.3",

@@ -1,4 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
+import fs from "node:fs";
 import path from "node:path";
 import {
   STATUSES,
@@ -8,16 +9,16 @@ import {
   type Priority,
   type TicketType,
 } from "./types";
+import { resolveDbPath } from "./settings";
 
-const DB_PATH = process.env.TICKETER_DB
-  ? path.resolve(process.env.TICKETER_DB)
-  : path.join(process.cwd(), "tickets.db");
+const DB_PATH = resolveDbPath();
 
 let db: DatabaseSync | null = null;
 
 export function getDb(): DatabaseSync {
   if (db) return db;
 
+  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
   db = new DatabaseSync(DB_PATH);
   db.exec("PRAGMA journal_mode = WAL;");
 

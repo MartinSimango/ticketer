@@ -4,6 +4,10 @@ out
 build
 *.tsbuildinfo
 
+# Tauri / Rust build artifacts
+src-tauri/target
+src-tauri/gen
+
 # SQLite database + WAL files (local state)
 tickets.db
 tickets.db-shm

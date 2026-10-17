@@ -4,12 +4,13 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Ticket as TicketIcon,
   LayoutGrid,
   Inbox,
   Plus,
   Search,
   Tag,
+  Trash2,
+  Settings as SettingsIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,8 @@ export function Sidebar({
   const [name, setName] = React.useState("");
   const [error, setError] = React.useState("");
   const [query, setQuery] = React.useState("");
+  const [toDelete, setToDelete] = React.useState<Project | null>(null);
+  const [deleting, setDeleting] = React.useState(false);
 
   async function createProject(e: React.FormEvent) {
     e.preventDefault();
@@ -64,12 +67,30 @@ export function Sidebar({
     router.push(`/search?q=${encodeURIComponent(q)}${scope}`);
   }
 
+  async function confirmDelete() {
+    if (!toDelete) return;
+    setDeleting(true);
+    await fetch(`/api/projects/${toDelete.id}`, { method: "DELETE" });
+    setDeleting(false);
+    const wasActive = toDelete.key === activeKey;
+    const remaining = projects.filter((p) => p.id !== toDelete.id);
+    setToDelete(null);
+    if (wasActive) {
+      router.push(remaining.length ? `/projects/${remaining[0].key}` : "/projects");
+    }
+    router.refresh();
+  }
+
   return (
     <aside className="flex h-screen w-64 shrink-0 flex-col border-r border-border bg-surface">
       <div className="flex items-center gap-2 px-4 py-4">
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-white">
-          <TicketIcon size={18} />
-        </span>
+        <img
+          src="/logo.svg"
+          alt="Ticketer"
+          className="h-9 w-9 rounded-xl"
+          width={36}
+          height={36}
+        />
         <div>
           <h1 className="text-base font-semibold text-foreground">Ticketer</h1>
           <p className="text-xs text-muted">Kanban & tickets</p>
@@ -110,21 +131,33 @@ export function Sidebar({
           const backlogHref = `/projects/${p.key}/backlog`;
           const isActive = p.key === activeKey;
           return (
-            <div key={p.id} className="mb-1">
-              <Link
-                href={boardHref}
+            <div key={p.id} className="group/project mb-1">
+              <div
                 className={cn(
-                  "flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium",
-                  isActive
-                    ? "bg-brand-50 text-brand-700"
-                    : "text-foreground hover:bg-brand-50"
+                  "flex items-center rounded-lg pr-1",
+                  isActive ? "bg-brand-50" : "hover:bg-brand-50"
                 )}
               >
-                <span className="flex h-6 w-6 items-center justify-center rounded bg-brand-100 text-xs font-semibold text-brand-700">
-                  {p.key.slice(0, 2)}
-                </span>
-                {p.name}
-              </Link>
+                <Link
+                  href={boardHref}
+                  className={cn(
+                    "flex flex-1 items-center gap-2 px-2 py-1.5 text-sm font-medium",
+                    isActive ? "text-brand-700" : "text-foreground"
+                  )}
+                >
+                  <span className="flex h-6 w-6 items-center justify-center rounded bg-brand-100 text-xs font-semibold text-brand-700">
+                    {p.key.slice(0, 2)}
+                  </span>
+                  {p.name}
+                </Link>
+                <button
+                  onClick={() => setToDelete(p)}
+                  aria-label={`Delete project ${p.name}`}
+                  className="rounded p-1 text-muted opacity-0 transition-opacity hover:text-red-600 group-hover/project:opacity-100"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
               {isActive && (
                 <div className="ml-8 mt-0.5 flex flex-col gap-0.5">
                   <SubLink
@@ -151,6 +184,21 @@ export function Sidebar({
           );
         })}
       </nav>
+
+      <div className="border-t border-border p-2">
+        <Link
+          href="/settings"
+          className={cn(
+            "flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium",
+            pathname === "/settings"
+              ? "bg-brand-50 text-brand-700"
+              : "text-foreground hover:bg-brand-50"
+          )}
+        >
+          <SettingsIcon size={16} />
+          Settings
+        </Link>
+      </div>
 
       <Dialog
         open={newOpen}
@@ -192,6 +240,37 @@ export function Sidebar({
             <Button type="submit">Create</Button>
           </div>
         </form>
+      </Dialog>
+
+      <Dialog
+        open={toDelete !== null}
+        onClose={() => setToDelete(null)}
+        title="Delete project"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-foreground">
+            Delete <strong>{toDelete?.name}</strong> ({toDelete?.key})? This
+            permanently removes the project and{" "}
+            <strong>all of its tickets</strong>. This cannot be undone.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setToDelete(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              disabled={deleting}
+              onClick={confirmDelete}
+            >
+              {deleting ? "Deleting…" : "Delete project"}
+            </Button>
+          </div>
+        </div>
       </Dialog>
     </aside>
   );
