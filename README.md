@@ -218,24 +218,43 @@ ticketer/
 
 ## Mac app
 
-Ticketer ships as a native **macOS app** (built with [Tauri](https://tauri.app)).
-The app wraps the same web UI in a native window and, on launch, starts **both**
-the web server and the MCP server for you. You can still run everything from the
-command line too — they share the same database and settings.
+Ticketer ships as a native, **fully self-contained macOS app** (built with
+[Tauri](https://tauri.app)). The `.app` bundles everything it needs — a Node
+runtime, the Next.js server, and the MCP server — so it runs on any Mac **with no
+Node, no `node_modules`, and no project folder required**. On launch it starts
+both the web server and the MCP server, waits for the port, then loads the UI.
+Closing the window shuts the background servers down. You can still run everything
+from the command line too; they share the same database and settings.
 
 ### Build the `.app`
 
-Requires the **Rust toolchain** (`rustup`, rustc ≥ 1.90) in addition to Node.
+Build requirements: **Node**, **pnpm**, the **Rust toolchain** (`rustup`,
+rustc ≥ 1.90), and `rsync` (preinstalled on macOS).
 
 ```bash
 pnpm install
-pnpm build          # build the Next.js app first
-pnpm app:build      # produces src-tauri/target/release/bundle/macos/Ticketer.app
+pnpm app:build   # builds Next.js, assembles the payload, and bundles the app
 ```
 
-Double-click **Ticketer.app** (or `open` it). It launches the server on the
-configured port, waits for it to come up, then loads the UI. Closing the window
-shuts the background servers down.
+This produces:
+
+```
+src-tauri/target/release/bundle/macos/Ticketer.app   (~224 MB, self-contained)
+src-tauri/target/release/bundle/dmg/Ticketer_*.dmg
+```
+
+`pnpm app:build` runs three steps for you:
+
+1. `pnpm build` — Next.js production build (with `output: "standalone"`).
+2. `pnpm bundle:app` — assembles `src-tauri/resources/app/`:
+   - `server/` — the standalone server + static assets + `public/`, with **all
+     pnpm symlinks flattened into real files** (via `rsync -aL`).
+   - `mcp-server.cjs` — the MCP server bundled into one file (esbuild).
+   - `node` — a self-contained Node runtime downloaded from nodejs.org.
+3. `tauri build` — bundles that payload into the `.app`/`.dmg`.
+
+Double-click **Ticketer.app** (or `open` it) — or drag it into `/Applications`.
+Because it's self-contained, you can move it anywhere, including another Mac.
 
 > The bundle is **unsigned** — on first launch macOS Gatekeeper may warn you.
 > Right-click the app → **Open**, or run
@@ -244,12 +263,11 @@ shuts the background servers down.
 ### Develop the app
 
 ```bash
-pnpm app:dev        # runs the Tauri shell against the local build
+pnpm app:dev        # runs the Tauri shell against the local project build
 ```
 
-> The app launches the server from the project directory. If you move the built
-> `.app` to another machine, point it at the project with the
-> `TICKETER_APP_ROOT` environment variable.
+In development the shell runs the server straight from the project (no payload
+assembly needed). Override the location with `TICKETER_APP_ROOT` if required.
 
 ---
 
@@ -257,7 +275,8 @@ pnpm app:dev        # runs the Tauri shell against the local build
 
 Ticketer keeps its **settings** and **database** in
 `~/Library/Application Support/Ticketer/` on macOS (override the whole directory
-with `TICKETER_DATA_DIR`).
+with `TICKETER_DATA_DIR`). The self-contained app writes here too, so your tickets
+persist independently of the app bundle.
 
 ### Settings page
 
@@ -272,12 +291,13 @@ web server, the Mac app, and the MCP server.
 
 ### Environment overrides
 
-| Variable             | Effect                                            |
-|----------------------|---------------------------------------------------|
-| `TICKETER_PORT`      | Override the port (also honors `PORT`)            |
-| `TICKETER_DB`        | Override the database file path                   |
-| `TICKETER_DATA_DIR`  | Override the settings/database directory          |
-| `TICKETER_APP_ROOT`  | Project dir the Mac app launches the server from  |
+| Variable                | Effect                                                 |
+|-------------------------|--------------------------------------------------------|
+| `TICKETER_PORT`         | Override the port (also honors `PORT`)                 |
+| `TICKETER_DB`           | Override the database file path                        |
+| `TICKETER_DATA_DIR`     | Override the settings/database directory               |
+| `TICKETER_APP_ROOT`     | Dir the app runs the server from (dev / custom setups) |
+| `TICKETER_NODE_VERSION` | Node version to bundle (build-time; default v22.20.0)  |
 
 ```bash
 TICKETER_PORT=7000 TICKETER_DB=/tmp/my-tickets.db pnpm start
@@ -289,14 +309,15 @@ Set the same values for `pnpm mcp` so both sides share one database.
 
 ## Scripts
 
-| Command           | What it does                                      |
-|-------------------|---------------------------------------------------|
-| `pnpm dev`        | Start the Next.js dev server (port 5164)          |
-| `pnpm build`      | Production build                                  |
-| `pnpm start`      | Run the production build on the configured port   |
-| `pnpm mcp`        | Start the MCP server (stdio)                       |
-| `pnpm app:dev`    | Run the macOS app in development                   |
-| `pnpm app:build`  | Build the macOS `.app` (and `.dmg`)                |
+| Command           | What it does                                       |
+|-------------------|----------------------------------------------------|
+| `pnpm dev`        | Start the Next.js dev server (port 5164)           |
+| `pnpm build`      | Production build (standalone output)               |
+| `pnpm start`      | Run the production build on the configured port    |
+| `pnpm mcp`        | Start the MCP server (stdio)                        |
+| `pnpm bundle:app` | Assemble the self-contained app payload            |
+| `pnpm app:dev`    | Run the macOS app in development                    |
+| `pnpm app:build`  | Build the self-contained macOS `.app` and `.dmg`   |
 
 ---
 

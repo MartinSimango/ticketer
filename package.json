@@ -7,9 +7,11 @@
     "build": "next build",
     "start": "node scripts/start-server.mjs",
     "mcp": "tsx mcp/server.ts",
+    "bundle:mcp": "node scripts/bundle-mcp.mjs",
+    "bundle:app": "node scripts/bundle-app.mjs",
     "tauri": "tauri",
     "app:dev": "tauri dev",
-    "app:build": "tauri build"
+    "app:build": "pnpm build && pnpm bundle:app && tauri build"
   },
   "dependencies": {
     "@base-ui-components/react": "^1.0.0-beta.1",
@@ -31,8 +33,12 @@
     "@types/node": "^22.10.7",
     "@types/react": "^19.0.7",
     "@types/react-dom": "^19.0.3",
+    "esbuild": "^0.24.2",
     "tailwindcss": "^4.0.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
   }
 }

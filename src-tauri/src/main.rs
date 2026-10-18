@@ -56,10 +56,19 @@ fn resolve_port() -> u16 {
     DEFAULT_PORT
 }
 
-/// Directory containing the Next.js build + node scripts (the project root).
-/// Override with TICKETER_APP_ROOT; otherwise falls back to the project path
-/// baked in at compile time (fine for local `pnpm app:build` on this machine).
-fn app_root(_app: &tauri::AppHandle) -> PathBuf {
+/// Path to the bundled payload (`<resources>/app`) when running a packaged app.
+fn bundled_payload(app: &tauri::AppHandle) -> Option<PathBuf> {
+    let resource_dir = app.path().resource_dir().ok()?;
+    let bundled = resource_dir.join("app");
+    if bundled.join("server.tar.gz").exists() {
+        Some(bundled)
+    } else {
+        None
+    }
+}
+
+/// Dev project root (used when not running a packaged app).
+fn dev_root() -> PathBuf {
     if let Ok(dir) = std::env::var("TICKETER_APP_ROOT") {
         return PathBuf::from(dir);
     }
@@ -69,12 +78,59 @@ fn app_root(_app: &tauri::AppHandle) -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
 }
 
-fn node_bin() -> String {
-    std::env::var("TICKETER_NODE").unwrap_or_else(|_| "node".into())
+/// Extracts the bundled server tarball into <data_dir>/runtime/server, but only
+/// when the BUILD_ID differs from the last extraction. Returns the server dir.
+/// Tar preserves pnpm's symlinks, so the extracted tree resolves correctly.
+fn ensure_server_extracted(payload: &PathBuf) -> std::io::Result<PathBuf> {
+    let runtime = data_dir().join("runtime");
+    let server = runtime.join("server");
+    let stamp = runtime.join("BUILD_ID");
+
+    let bundled_id = fs::read_to_string(payload.join("BUILD_ID")).unwrap_or_default();
+    let current_id = fs::read_to_string(&stamp).unwrap_or_default();
+
+    if !server.join("server.js").exists() || bundled_id != current_id {
+        let _ = fs::remove_dir_all(&server);
+        fs::create_dir_all(&server)?;
+        Command::new("tar")
+            .arg("-xzf")
+            .arg(payload.join("server.tar.gz"))
+            .arg("-C")
+            .arg(&server)
+            .status()?;
+        fs::write(&stamp, bundled_id)?;
+    }
+    Ok(server)
 }
 
-fn spawn_server(root: &PathBuf, port: u16) -> std::io::Result<Child> {
-    Command::new(node_bin())
+/// Node runtime to use: the bundled copy when present, else system `node`.
+fn node_bin(dir: &PathBuf) -> PathBuf {
+    let bundled = dir.join("node");
+    if bundled.exists() {
+        return bundled;
+    }
+    PathBuf::from(std::env::var("TICKETER_NODE").unwrap_or_else(|_| "node".into()))
+}
+
+fn spawn_server_bundled(
+    payload: &PathBuf,
+    port: u16,
+) -> std::io::Result<Child> {
+    let server = ensure_server_extracted(payload)?;
+    let node = node_bin(payload);
+    Command::new(node)
+        .arg(server.join("server.js"))
+        .env("PORT", port.to_string())
+        .env("TICKETER_PORT", port.to_string())
+        .env("HOSTNAME", "127.0.0.1")
+        .current_dir(&server)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+}
+
+fn spawn_server_dev(root: &PathBuf, port: u16) -> std::io::Result<Child> {
+    Command::new(node_bin(root))
         .arg(root.join("scripts").join("start-server.mjs"))
         .env("PORT", port.to_string())
         .env("TICKETER_PORT", port.to_string())
@@ -84,10 +140,18 @@ fn spawn_server(root: &PathBuf, port: u16) -> std::io::Result<Child> {
         .spawn()
 }
 
-fn spawn_mcp(root: &PathBuf) -> std::io::Result<Child> {
-    // Launch the MCP server alongside the app. It speaks stdio; keeping its
-    // stdin open lets a local client attach. Shares the same DB.
-    // tsx's bin is a shell script, so run it directly rather than via node.
+fn spawn_mcp_bundled(payload: &PathBuf) -> std::io::Result<Child> {
+    Command::new(node_bin(payload))
+        .arg(payload.join("mcp-server.cjs"))
+        .current_dir(payload)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+}
+
+fn spawn_mcp_dev(root: &PathBuf) -> std::io::Result<Child> {
+    // tsx's bin is a shell script, so run it directly.
     let tsx = root.join("node_modules").join(".bin").join("tsx");
     Command::new(tsx)
         .arg(root.join("mcp").join("server.ts"))
@@ -117,14 +181,26 @@ fn main() {
         .manage(Mutex::new(Sidecars { children: vec![] }))
         .setup(move |app| {
             let handle = app.handle().clone();
-            let root = app_root(&handle);
 
             let mut children = vec![];
-            if let Ok(child) = spawn_server(&root, port) {
-                children.push(child);
-            }
-            if let Ok(child) = spawn_mcp(&root) {
-                children.push(child);
+            match bundled_payload(&handle) {
+                Some(payload) => {
+                    if let Ok(child) = spawn_server_bundled(&payload, port) {
+                        children.push(child);
+                    }
+                    if let Ok(child) = spawn_mcp_bundled(&payload) {
+                        children.push(child);
+                    }
+                }
+                None => {
+                    let root = dev_root();
+                    if let Ok(child) = spawn_server_dev(&root, port) {
+                        children.push(child);
+                    }
+                    if let Ok(child) = spawn_mcp_dev(&root) {
+                        children.push(child);
+                    }
+                }
             }
             {
                 let state = app.state::<Mutex<Sidecars>>();
