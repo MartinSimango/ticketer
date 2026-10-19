@@ -163,7 +163,7 @@ export function Board({
 
   return (
     <div className="flex h-screen flex-col">
-      <header className="flex items-center justify-between border-b border-border bg-surface px-6 py-4">
+      <header className="material-chrome sticky top-0 z-20 flex items-center justify-between border-b border-[var(--material-chrome-edge)] px-6 py-4">
         <div>
           <h1 className="text-base font-semibold text-foreground">
             {project.name} · Board
@@ -185,26 +185,33 @@ export function Board({
       </header>
 
       {allLabels.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 border-b border-border bg-surface px-6 py-2">
+        <div className="material-chrome sticky top-[57px] z-10 flex flex-wrap items-center gap-1.5 border-b border-[var(--material-chrome-edge)] px-6 py-2">
           <span className="mr-1 text-xs font-medium text-muted">Filter:</span>
-          <button onClick={() => setLabelFilter(null)}>
+          <button
+            onClick={() => setLabelFilter(null)}
+            className="transition-transform active:scale-95"
+          >
             <span
               className={
                 labelFilter === null
                   ? "rounded-full bg-brand-600 px-2 py-0.5 text-xs font-medium text-white"
-                  : "rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 hover:bg-brand-50"
+                  : "rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 transition-colors hover:bg-brand-50"
               }
             >
               All
             </span>
           </button>
           {allLabels.map((l) => (
-            <button key={l} onClick={() => setLabelFilter(l)}>
+            <button
+              key={l}
+              onClick={() => setLabelFilter(l)}
+              className="transition-transform active:scale-95"
+            >
               <span
                 className={
                   labelFilter === l
                     ? "rounded-full bg-brand-600 px-2 py-0.5 text-xs font-medium text-white"
-                    : "rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 hover:bg-brand-50"
+                    : "rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 transition-colors hover:bg-brand-50"
                 }
               >
                 {l}

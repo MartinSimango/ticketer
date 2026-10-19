@@ -2,10 +2,17 @@
   "name": "ticketer",
   "version": "0.1.0",
   "private": true,
+  "bin": {
+    "ticketer": "bin/ticketer.mjs"
+  },
   "scripts": {
     "dev": "next dev -p ${PORT:-5164}",
     "build": "next build",
     "start": "node scripts/start-server.mjs",
+    "serve": "node bin/ticketer.mjs serve",
+    "web": "node bin/ticketer.mjs web",
+    "tui": "node bin/ticketer.mjs tui",
+    "ticketer": "node bin/ticketer.mjs",
     "mcp": "tsx mcp/server.ts",
     "bundle:mcp": "node scripts/bundle-mcp.mjs",
     "bundle:app": "node scripts/bundle-app.mjs",
@@ -20,7 +27,10 @@
     "@modelcontextprotocol/sdk": "^1.12.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "ink": "^8.0.0",
+    "ink-text-input": "^6.0.0",
     "lucide-react": "^0.471.0",
+    "motion": "^14.3.0",
     "next": "15.1.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -39,6 +49,8 @@
     "typescript": "^5.7.3"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }

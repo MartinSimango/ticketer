@@ -1,9 +1,11 @@
 "use client";
 
 import { useDraggable } from "@dnd-kit/core";
-import { CSS } from "@dnd-kit/utilities";
+import { motion } from "motion/react";
 import { User } from "lucide-react";
 import { PriorityBadge, TypeIcon, LabelChip } from "@/components/ui/badge";
+import { springMomentum } from "@/lib/motion";
+import { useReducedMotionSafe } from "@/lib/use-mounted";
 import type { Ticket } from "@/lib/types";
 
 export function TicketCard({
@@ -15,22 +17,39 @@ export function TicketCard({
   onOpen: (t: Ticket) => void;
   draggable?: boolean;
 }) {
+  const reduceMotion = useReducedMotionSafe();
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id: ticket.id, disabled: !draggable });
 
-  const style = {
-    transform: CSS.Translate.toString(transform),
-    opacity: isDragging ? 0.4 : 1,
-  };
+  // Track the pointer 1:1 while dragging; spring back to the grid on release.
+  const dragX = transform?.x ?? 0;
+  const dragY = transform?.y ?? 0;
 
   return (
-    <div
+    <motion.div
       ref={setNodeRef}
-      style={style}
       {...attributes}
       {...listeners}
       onClick={() => onOpen(ticket)}
-      className="group cursor-grab rounded-xl border border-border bg-surface p-3 shadow-sm transition-shadow hover:border-brand-200 hover:shadow-md active:cursor-grabbing"
+      animate={{
+        x: dragX,
+        y: dragY,
+        opacity: isDragging ? 0.85 : 1,
+        scale: isDragging ? 1.03 : 1,
+        boxShadow: isDragging
+          ? "0 12px 28px -8px rgba(37, 99, 235, 0.35)"
+          : "0 1px 2px 0 rgba(15, 23, 42, 0.06)",
+      }}
+      transition={
+        isDragging
+          ? { duration: 0 } // 1:1 tracking while the finger drives it
+          : reduceMotion
+            ? { duration: 0.2 }
+            : springMomentum // velocity-aware settle on release
+      }
+      whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+      style={{ zIndex: isDragging ? 50 : undefined, position: "relative" }}
+      className="group cursor-grab rounded-xl border border-border bg-surface p-3 hover:border-brand-200 active:cursor-grabbing"
     >
       <div className="mb-2 flex items-start gap-2">
         <TypeIcon type={ticket.type} />
@@ -66,6 +85,6 @@ export function TicketCard({
           </span>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }

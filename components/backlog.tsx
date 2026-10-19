@@ -1,9 +1,12 @@
 "use client";
 
 import * as React from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { Plus, ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PriorityBadge, TypeIcon, LabelChip } from "@/components/ui/badge";
+import { springSnappy } from "@/lib/motion";
+import { useMounted, useReducedMotionSafe } from "@/lib/use-mounted";
 import { TicketDialog, type DraftTicket } from "./ticket-dialog";
 import type { Project, Ticket } from "@/lib/types";
 
@@ -31,6 +34,9 @@ export function Backlog({
   const [draft, setDraft] = React.useState<DraftTicket>(emptyDraft());
 
   React.useEffect(() => setTickets(initialTickets), [initialTickets]);
+
+  const reduceMotion = useReducedMotionSafe();
+  const mounted = useMounted();
 
   const items = tickets
     .filter((t) => t.status === "backlog")
@@ -94,7 +100,7 @@ export function Backlog({
 
   return (
     <div className="flex h-screen flex-col">
-      <header className="flex items-center justify-between border-b border-border bg-surface px-6 py-4">
+      <header className="material-chrome flex items-center justify-between border-b border-[var(--material-chrome-edge)] px-6 py-4">
         <div>
           <h1 className="text-base font-semibold text-foreground">
             {project.name} · Backlog
@@ -113,37 +119,45 @@ export function Backlog({
               The backlog is empty.
             </p>
           )}
-          {items.map((t) => (
-            <div
-              key={t.id}
-              onClick={() => openEdit(t)}
-              className="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 shadow-sm transition-shadow hover:border-brand-200 hover:shadow-md"
-            >
-              <TypeIcon type={t.type} />
-              <span className="w-20 shrink-0 text-xs font-medium text-brand-600">
-                {t.id}
-              </span>
-              <span className="flex-1 truncate text-sm font-medium text-foreground">
-                {t.title}
-              </span>
-              {t.labels.map((l) => (
-                <LabelChip key={l} label={l} />
-              ))}
-              <PriorityBadge priority={t.priority} />
-              <Button
-                variant="ghost"
-                size="sm"
-                title="Move to Todo"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  promote(t);
-                }}
+          <AnimatePresence initial={false}>
+            {items.map((t) => (
+              <motion.div
+                key={t.id}
+                layout={!reduceMotion}
+                initial={mounted ? { opacity: 0, y: 6 } : false}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={springSnappy}
+                whileTap={reduceMotion ? undefined : { scale: 0.99 }}
+                onClick={() => openEdit(t)}
+                className="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 shadow-sm transition-colors hover:border-brand-200"
               >
-                <ArrowUp size={15} />
-                Todo
-              </Button>
-            </div>
-          ))}
+                <TypeIcon type={t.type} />
+                <span className="w-20 shrink-0 text-xs font-medium text-brand-600">
+                  {t.id}
+                </span>
+                <span className="flex-1 truncate text-sm font-medium text-foreground">
+                  {t.title}
+                </span>
+                {t.labels.map((l) => (
+                  <LabelChip key={l} label={l} />
+                ))}
+                <PriorityBadge priority={t.priority} />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  title="Move to Todo"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    promote(t);
+                  }}
+                >
+                  <ArrowUp size={15} />
+                  Todo
+                </Button>
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
       </main>
 

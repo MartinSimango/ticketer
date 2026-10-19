@@ -44,9 +44,26 @@ export function getDb(): DatabaseSync {
       created_at  TEXT NOT NULL,
       updated_at  TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS meta (
+      key   TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
   `);
 
-  seed(db);
+  // Seed demo data only once, on first database creation. Tracking this with a
+  // persistent flag (rather than "is the table empty?") means a user who
+  // intentionally deletes every project keeps an empty board instead of having
+  // the sample data reappear.
+  const alreadySeeded = db
+    .prepare("SELECT value FROM meta WHERE key = 'seeded'")
+    .get();
+  if (!alreadySeeded) {
+    seed(db);
+    db.prepare("INSERT INTO meta (key, value) VALUES ('seeded', ?)").run(
+      new Date().toISOString()
+    );
+  }
   return db;
 }
 

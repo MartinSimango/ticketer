@@ -13,6 +13,11 @@
   --color-border: #e2e8f0;
   --color-foreground: #0f172a;
   --color-muted: #64748b;
+
+  /* Translucent materials (Apple-style layered chrome) */
+  --material-chrome: rgba(255, 255, 255, 0.68);
+  --material-chrome-edge: rgba(255, 255, 255, 0.55);
+  --material-panel: rgba(245, 248, 255, 0.72);
 }
 
 * {
@@ -25,6 +30,16 @@ body {
   color: var(--color-foreground);
   font-family:
     ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Size-specific tracking: tighten large text, body stays near 0 */
+h1 {
+  letter-spacing: -0.018em;
+}
+h2 {
+  letter-spacing: -0.012em;
 }
 
 ::-webkit-scrollbar {
@@ -34,4 +49,41 @@ body {
 ::-webkit-scrollbar-thumb {
   background: var(--color-brand-200);
   border-radius: 9999px;
+}
+
+/* Translucent chrome material: content scrolls underneath a blurred layer */
+.material-chrome {
+  background: var(--material-chrome);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+.material-panel {
+  background: var(--material-panel);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+}
+
+/* Accessibility: gentler, non-vestibular equivalents */
+@media (prefers-reduced-transparency: reduce) {
+  .material-chrome {
+    background: var(--color-surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .material-panel {
+    background: var(--color-surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .material-chrome,
+  .material-panel {
+    background: var(--color-surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-color: var(--color-foreground);
+  }
 }

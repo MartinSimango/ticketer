@@ -14,6 +14,37 @@ delete tickets — across multiple projects — alongside you.
 
 ---
 
+## Ways to run Ticketer
+
+Ticketer is decoupled into a **server** (the data layer + REST API + MCP) and several
+**front ends** you can pick from. One unified CLI ties them together:
+
+| Mode | Command | What you get |
+|------|---------|--------------|
+| 🖥️ **Desktop app** | open **Ticketer.app** | Native macOS window that launches the server + MCP, then loads the UI |
+| 🌐 **Web** | `ticketer web` | Starts the server and opens the board in your browser |
+| 🔌 **Headless** | `ticketer serve` | Just the server/API — no UI. For scripts, remote access, or pairing with a front end |
+| ⌨️ **TUI** | `ticketer tui` | A terminal kanban board. Auto-starts a local server, or point at a remote one |
+| 🤖 **MCP** | `ticketer mcp` | MCP server over stdio for AI clients |
+
+```bash
+ticketer web                 # browser UI
+ticketer serve --port 7000   # headless server on a custom port
+ticketer tui                 # terminal UI (starts a server if none is running)
+ticketer tui --server http://localhost:5164   # attach to an existing server
+ticketer app                 # open the native macOS app (or show the download link)
+```
+
+Run them via `pnpm` too: `pnpm web`, `pnpm serve`, `pnpm tui`, `pnpm ticketer <cmd>`.
+The TUI is a true **client** — it talks to the server over the same HTTP API the web
+UI uses, so you can run the board in your terminal against a local **or** remote server.
+
+> **Download the Mac app:** grab the latest `.dmg` from the
+> [GitHub Releases page](https://github.com/your-org/ticketer/releases/latest).
+> <!-- TODO: replace with the real repo URL once published -->
+
+---
+
 ## Features
 
 - 📁 **Projects** — group tickets under projects; each project has a key used as the
@@ -156,6 +187,43 @@ opencode mcp add ticketer --command "pnpm --dir /absolute/path/to/ticketer mcp"
 
 ---
 
+## Terminal UI (TUI)
+
+Prefer to stay in the terminal? Ticketer ships a keyboard-driven kanban board built
+with [Ink](https://github.com/vadimdemedes/ink).
+
+```bash
+ticketer tui          # or: pnpm tui
+```
+
+By default it reuses a server already running on your configured port, or starts a
+headless one for you (and shuts it down when you quit). To attach to a specific
+server instead:
+
+```bash
+ticketer tui --server http://localhost:5164
+```
+
+### Keys
+
+| Key | Action |
+|-----|--------|
+| `←/→` or `h`/`l` | Move between columns |
+| `↑/↓` or `j`/`k` | Move between cards |
+| `<` `>` or `[` `]` | Move the selected ticket to the previous / next status |
+| `Enter` | Open / edit the selected ticket |
+| `n` | Create a new ticket |
+| `d` | Delete the selected ticket (confirms with `y`/`n`) |
+| `p` | Switch project |
+| `r` | Refresh from the server |
+| `?` | Help |
+| `q` | Quit |
+
+In the ticket form: `↑/↓` or `Tab` move between fields, `←/→` cycle the type / status /
+priority options, `Ctrl+S` saves, and `Esc` cancels.
+
+---
+
 ## HTTP API
 
 The web UI uses a small REST API you can also call directly:
@@ -210,6 +278,14 @@ ticketer/
 │  ├─ projects.ts                   # Project CRUD (shared by API & MCP)
 │  ├─ tickets.ts                    # Ticket CRUD + search + labels (API & MCP)
 │  └─ types.ts                      # Statuses, priorities, types, models
+├─ bin/
+│  ├─ ticketer.mjs                  # Unified CLI (serve / web / tui / mcp / app)
+│  └─ lib/config.mjs                # Port resolution + server start/wait helpers
+├─ tui/
+│  ├─ index.tsx                     # TUI entry — ensures a server, renders the app
+│  ├─ app.tsx                       # Ink kanban board + navigation
+│  ├─ ticket-form.tsx               # Create/edit ticket form
+│  └─ api.ts                        # HTTP client for the REST API
 └─ mcp/
    └─ server.ts                     # stdio MCP server
 ```
@@ -314,6 +390,10 @@ Set the same values for `pnpm mcp` so both sides share one database.
 | `pnpm dev`        | Start the Next.js dev server (port 5164)           |
 | `pnpm build`      | Production build (standalone output)               |
 | `pnpm start`      | Run the production build on the configured port    |
+| `pnpm serve`      | Run the server headless via the CLI (`ticketer serve`) |
+| `pnpm web`        | Start the server and open the browser (`ticketer web`) |
+| `pnpm tui`        | Launch the terminal UI (`ticketer tui`)            |
+| `pnpm ticketer …` | The unified CLI (`serve`, `web`, `tui`, `mcp`, `app`) |
 | `pnpm mcp`        | Start the MCP server (stdio)                        |
 | `pnpm bundle:app` | Assemble the self-contained app payload            |
 | `pnpm app:dev`    | Run the macOS app in development                    |

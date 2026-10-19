@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { motion } from "motion/react";
 import {
   LayoutGrid,
   Inbox,
@@ -16,16 +17,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/input";
+import { springSnappy } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import type { Project } from "@/lib/types";
 
 export function Sidebar({
-  projects,
+  projects: initialProjects,
 }: {
   projects: Project[];
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [projects, setProjects] = React.useState<Project[]>(initialProjects);
+  React.useEffect(() => setProjects(initialProjects), [initialProjects]);
   const activeKey = React.useMemo(() => {
     const m = pathname.match(/^\/projects\/([^/]+)/);
     return m ? decodeURIComponent(m[1]) : undefined;
@@ -52,6 +56,7 @@ export function Sidebar({
       return;
     }
     const project: Project = await res.json();
+    setProjects((prev) => [...prev, project]);
     setNewOpen(false);
     setKey("");
     setName("");
@@ -70,19 +75,31 @@ export function Sidebar({
   async function confirmDelete() {
     if (!toDelete) return;
     setDeleting(true);
-    await fetch(`/api/projects/${toDelete.id}`, { method: "DELETE" });
+    const res = await fetch(`/api/projects/${toDelete.id}`, {
+      method: "DELETE",
+    });
     setDeleting(false);
+    if (!res.ok) {
+      setToDelete(null);
+      return;
+    }
     const wasActive = toDelete.key === activeKey;
     const remaining = projects.filter((p) => p.id !== toDelete.id);
+    setProjects(remaining);
     setToDelete(null);
     if (wasActive) {
-      router.push(remaining.length ? `/projects/${remaining[0].key}` : "/projects");
+      // Navigate away from the deleted project's board. Don't refresh the
+      // current (now-deleted) route, or it will render notFound().
+      router.replace(
+        remaining.length ? `/projects/${remaining[0].key}` : "/projects"
+      );
+    } else {
+      router.refresh();
     }
-    router.refresh();
   }
 
   return (
-    <aside className="flex h-screen w-64 shrink-0 flex-col border-r border-border bg-surface">
+    <aside className="material-chrome flex h-screen w-64 shrink-0 flex-col border-r border-[var(--material-chrome-edge)]">
       <div className="flex items-center gap-2 px-4 py-4">
         <img
           src="/logo.svg"
@@ -134,14 +151,21 @@ export function Sidebar({
             <div key={p.id} className="group/project mb-1">
               <div
                 className={cn(
-                  "flex items-center rounded-lg pr-1",
-                  isActive ? "bg-brand-50" : "hover:bg-brand-50"
+                  "relative flex items-center rounded-lg pr-1",
+                  !isActive && "hover:bg-brand-50"
                 )}
               >
+                {isActive && (
+                  <motion.div
+                    layoutId="project-selection"
+                    transition={springSnappy}
+                    className="absolute inset-0 rounded-lg bg-brand-50"
+                  />
+                )}
                 <Link
                   href={boardHref}
                   className={cn(
-                    "flex flex-1 items-center gap-2 px-2 py-1.5 text-sm font-medium",
+                    "relative flex flex-1 items-center gap-2 px-2 py-1.5 text-sm font-medium",
                     isActive ? "text-brand-700" : "text-foreground"
                   )}
                 >
@@ -153,7 +177,7 @@ export function Sidebar({
                 <button
                   onClick={() => setToDelete(p)}
                   aria-label={`Delete project ${p.name}`}
-                  className="rounded p-1 text-muted opacity-0 transition-opacity hover:text-red-600 group-hover/project:opacity-100"
+                  className="relative rounded p-1 text-muted opacity-0 transition-opacity hover:text-red-600 group-hover/project:opacity-100"
                 >
                   <Trash2 size={14} />
                 </button>
